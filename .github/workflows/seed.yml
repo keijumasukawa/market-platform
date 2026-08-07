@@ -1,4 +1,4 @@
-name: seed
+name: Seed Database
 
 on:
   workflow_dispatch:
