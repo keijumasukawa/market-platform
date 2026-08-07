@@ -7,6 +7,11 @@
     "node": "^24.0.0"
   },
   "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "pnpm --recursive run typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
   }
 }
