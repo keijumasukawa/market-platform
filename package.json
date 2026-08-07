@@ -1,5 +1,5 @@
 {
-  "name": "crypto-platform",
+  "name": "crypto-backend",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.20.0",
