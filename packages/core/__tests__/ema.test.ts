@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "../src/decimal.ts";
 import { calculateEma } from "../src/ema.ts";
-
-function convertToDecimals(values: string[]): Decimal[] {
-  return values.map((value) => new Decimal(value));
-}
+import { buildFixtureCloses, convertToDecimals } from "./helpers.ts";
 
 function convertToStrings(values: (Decimal | null)[]): (string | null)[] {
   return values.map((value) => (value === null ? null : value.toString()));
@@ -47,19 +44,25 @@ describe("calculateEma", () => {
     );
   });
 
-  it("全期間の計算と前回値からの増分計算が一致する", () => {
-    const closes = convertToDecimals(["1", "2", "4", "8", "16", "32"]);
-    const period = 3;
+  it("全期間の計算と前回値からの増分計算が任意の分割点で一致する", () => {
+    const period = 26;
+    const closes = buildFixtureCloses(60);
     const wholeSeries = calculateEma(closes, period);
-    const seed = wholeSeries[3];
-    expect(seed).not.toBeNull();
-    if (seed === null) {
-      return;
+    for (let split = 40; split <= 50; split += 1) {
+      const previousEma = wholeSeries[split - 1];
+      expect(previousEma).not.toBeNull();
+      if (previousEma === null || previousEma === undefined) {
+        return;
+      }
+      const continuation = calculateEma(
+        closes.slice(split),
+        period,
+        previousEma,
+      );
+      expect(convertToStrings(continuation)).toEqual(
+        convertToStrings(wholeSeries.slice(split)),
+      );
     }
-    const continuation = calculateEma(closes.slice(4), period, seed);
-    expect(convertToStrings(continuation)).toEqual(
-      convertToStrings(wholeSeries.slice(4)),
-    );
   });
 
   it("期間に満たない系列はすべて null とする", () => {

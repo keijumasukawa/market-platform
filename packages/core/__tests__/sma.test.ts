@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Decimal } from "../src/decimal.ts";
 import { calculateSma } from "../src/sma.ts";
-
-function convertToDecimals(values: string[]): Decimal[] {
-  return values.map((value) => new Decimal(value));
-}
+import { buildFixtureCloses, convertToDecimals } from "./helpers.ts";
 
 function convertToStrings(values: (Decimal | null)[]): (string | null)[] {
   return values.map((value) => (value === null ? null : value.toString()));
@@ -68,5 +65,18 @@ describe("calculateSma", () => {
     const closes = convertToDecimals(["1"]);
     expect(() => calculateSma(closes, 0)).toThrow();
     expect(() => calculateSma(closes, 1.5)).toThrow();
+  });
+
+  it("全期間の計算と窓の不足分を遡った増分計算が任意の分割点で一致する", () => {
+    const period = 20;
+    const closes = buildFixtureCloses(60);
+    const wholeSeries = calculateSma(closes, period);
+    for (let split = 40; split <= 50; split += 1) {
+      const lookbackStart = split - (period - 1);
+      const incremental = calculateSma(closes.slice(lookbackStart), period);
+      expect(
+        convertToStrings(incremental.slice(split - lookbackStart)),
+      ).toEqual(convertToStrings(wholeSeries.slice(split)));
+    }
   });
 });
