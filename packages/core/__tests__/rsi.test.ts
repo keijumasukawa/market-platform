@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Decimal } from "../src/decimal.ts";
 import { calculateRsi, type RsiValue } from "../src/rsi.ts";
-
-function convertToDecimals(values: string[]): Decimal[] {
-  return values.map((value) => new Decimal(value));
-}
+import { buildFixtureCloses, convertToDecimals } from "./helpers.ts";
 
 function convertToStrings(values: (RsiValue | null)[]) {
   return values.map((value) =>
@@ -44,24 +40,30 @@ describe("calculateRsi", () => {
     expect(calculateRsi(closes, 2)[2]?.rsi.toString()).toBe("100");
   });
 
-  it("全期間の計算と前回状態からの増分計算が一致する", () => {
-    const closes = convertToDecimals(["1", "3", "2", "5", "4", "8"]);
-    const period = 2;
+  it("全期間の計算と前回状態からの増分計算が任意の分割点で一致する", () => {
+    const period = 14;
+    const closes = buildFixtureCloses(60);
     const wholeSeries = calculateRsi(closes, period);
-    const state = wholeSeries[3];
-    const previousClose = closes[3];
-    expect(state).not.toBeNull();
-    if (state === null || state === undefined || previousClose === undefined) {
-      return;
+    for (let split = 40; split <= 50; split += 1) {
+      const state = wholeSeries[split - 1];
+      const previousClose = closes[split - 1];
+      expect(state).not.toBeNull();
+      if (
+        state === null ||
+        state === undefined ||
+        previousClose === undefined
+      ) {
+        return;
+      }
+      const continuation = calculateRsi(closes.slice(split), period, {
+        avgGain: state.avgGain,
+        avgLoss: state.avgLoss,
+        previousClose,
+      });
+      expect(convertToStrings(continuation)).toEqual(
+        convertToStrings(wholeSeries.slice(split)),
+      );
     }
-    const continuation = calculateRsi(closes.slice(4), period, {
-      avgGain: state.avgGain,
-      avgLoss: state.avgLoss,
-      previousClose,
-    });
-    expect(convertToStrings(continuation)).toEqual(
-      convertToStrings(wholeSeries.slice(4)),
-    );
   });
 
   it("標準パラメータ(期間 14)で定義開始位置が正しい", () => {

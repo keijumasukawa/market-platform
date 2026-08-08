@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { Decimal } from "../src/decimal.ts";
 import { calculateEma } from "../src/ema.ts";
 import { calculateMacd, type MacdValue } from "../src/macd.ts";
-
-function convertToDecimals(values: string[]): Decimal[] {
-  return values.map((value) => new Decimal(value));
-}
+import { buildFixtureCloses, convertToDecimals } from "./helpers.ts";
 
 function convertToStrings(values: MacdValue[]) {
   return values.map((value) => ({
@@ -48,32 +44,34 @@ describe("calculateMacd", () => {
     expect(values[33]?.macdHist).not.toBeNull();
   });
 
-  it("全期間の計算と前回状態からの増分計算が一致する", () => {
-    const closes = convertToDecimals(["1", "2", "4", "8", "16", "32", "64"]);
-    const wholeSeries = calculateMacd(closes, 2, 3, 2);
-    const shortEma = calculateEma(closes, 2)[4];
-    const longEma = calculateEma(closes, 3)[4];
-    const signalEma = wholeSeries[4]?.macdSignal ?? null;
-    expect(shortEma).not.toBeNull();
-    expect(longEma).not.toBeNull();
-    expect(signalEma).not.toBeNull();
-    if (
-      shortEma === null ||
-      shortEma === undefined ||
-      longEma === null ||
-      longEma === undefined ||
-      signalEma === null
-    ) {
-      return;
+  it("全期間の計算と前回状態からの増分計算が任意の分割点で一致する", () => {
+    const closes = buildFixtureCloses(60);
+    const wholeSeries = calculateMacd(closes, 12, 26, 9);
+    const shortEmas = calculateEma(closes, 12);
+    const longEmas = calculateEma(closes, 26);
+    for (let split = 40; split <= 50; split += 1) {
+      const shortEma = shortEmas[split - 1];
+      const longEma = longEmas[split - 1];
+      const signalEma = wholeSeries[split - 1]?.macdSignal ?? null;
+      expect(signalEma).not.toBeNull();
+      if (
+        shortEma === null ||
+        shortEma === undefined ||
+        longEma === null ||
+        longEma === undefined ||
+        signalEma === null
+      ) {
+        return;
+      }
+      const continuation = calculateMacd(closes.slice(split), 12, 26, 9, {
+        shortEma,
+        longEma,
+        signalEma,
+      });
+      expect(convertToStrings(continuation)).toEqual(
+        convertToStrings(wholeSeries.slice(split)),
+      );
     }
-    const continuation = calculateMacd(closes.slice(5), 2, 3, 2, {
-      shortEma,
-      longEma,
-      signalEma,
-    });
-    expect(convertToStrings(continuation)).toEqual(
-      convertToStrings(wholeSeries.slice(5)),
-    );
   });
 
   it("期間に満たない系列はすべて null とする", () => {

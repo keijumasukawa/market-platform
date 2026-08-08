@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { calculateBollingerBands } from "../src/bollinger-bands.ts";
-import { Decimal } from "../src/decimal.ts";
+import {
+  calculateBollingerBands,
+  type BollingerBands,
+} from "../src/bollinger-bands.ts";
 import { calculateSma } from "../src/sma.ts";
+import { buildFixtureCloses, convertToDecimals } from "./helpers.ts";
 
-function convertToDecimals(values: string[]): Decimal[] {
-  return values.map((value) => new Decimal(value));
+function convertToStrings(values: (BollingerBands | null)[]) {
+  return values.map((value) =>
+    value === null
+      ? null
+      : {
+          upper: value.upper.toString(),
+          middle: value.middle.toString(),
+          lower: value.lower.toString(),
+        },
+  );
 }
 
 describe("calculateBollingerBands", () => {
@@ -68,5 +79,22 @@ describe("calculateBollingerBands", () => {
     const closes = convertToDecimals(["1"]);
     expect(() => calculateBollingerBands(closes, 1, 0)).toThrow();
     expect(() => calculateBollingerBands(closes, 1, -2)).toThrow();
+  });
+
+  it("全期間の計算と窓の不足分を遡った増分計算が任意の分割点で一致する", () => {
+    const period = 20;
+    const closes = buildFixtureCloses(60);
+    const wholeSeries = calculateBollingerBands(closes, period, 2);
+    for (let split = 40; split <= 50; split += 1) {
+      const lookbackStart = split - (period - 1);
+      const incremental = calculateBollingerBands(
+        closes.slice(lookbackStart),
+        period,
+        2,
+      );
+      expect(
+        convertToStrings(incremental.slice(split - lookbackStart)),
+      ).toEqual(convertToStrings(wholeSeries.slice(split)));
+    }
   });
 });
